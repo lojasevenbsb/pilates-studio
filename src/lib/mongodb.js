@@ -2,6 +2,16 @@ import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/pilates";
 
+// Transformação global: remove __v, garante campo id como string
+mongoose.set("toJSON", {
+  virtuals: true,
+  transform: (_doc, ret) => {
+    if (ret._id !== undefined) ret.id = ret._id.toString();
+    delete ret.__v;
+    return ret;
+  },
+});
+
 let cached = globalThis._mongooseConn;
 if (!cached) {
   cached = globalThis._mongooseConn = { conn: null, promise: null };

@@ -1,8 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useApp } from "../context/AppContext.jsx";
-import { PLANOS, DIAS_SEMANA, ICONES_FORMA, todayStr, todayDow } from "../constants/index.js";
+import { useApp }        from "../context/AppContext.jsx";
+import { useAluno, useRegistrarFreq } from "../hooks/useAlunos.js";
+import { usePlanos }     from "../hooks/usePlanos.js";
+import { DIAS_SEMANA, ICONES_FORMA, todayStr, todayDow } from "../constants/index.js";
 import { brl, mesLabel, iniciais } from "../utils/format.js";
 import { I } from "../components/Icons.jsx";
 
@@ -10,26 +12,33 @@ export default function DetalheAluno() {
   const params       = useParams();
   const searchParams = useSearchParams();
   const router       = useRouter();
-  const { alunos, openPago, registrarFreq } = useApp();
+  const { openPago, showToast } = useApp();
 
-  const aluno      = alunos.find(a => a.id === Number(params.id));
-  const initialTab = searchParams.get("tab") || "info";
-  const [tab, setTab] = useState(initialTab);
+  const { data: aluno, isLoading } = useAluno(params.id);
+  const { data: planos = [] }      = usePlanos();
+  const { mutate: registrarFreq }  = useRegistrarFreq();
 
-  if (!aluno) {
-    return <div className="empty"><div className="empty-ico">❌</div><p>Aluno não encontrado</p></div>;
-  }
+  const [tab, setTab] = useState(searchParams.get("tab") || "info");
 
-  const mesAtual = todayStr.slice(0, 7);
-  const p        = PLANOS.find(pl => pl.id === aluno.planoId);
-  const freqHoje = aluno.frequencias.find(f => f.data === todayStr);
-  const pct      = aluno.frequencias.length
+  if (isLoading) return <div className="empty"><p>Carregando…</p></div>;
+  if (!aluno)    return <div className="empty"><div className="empty-ico">❌</div><p>Aluno não encontrado</p></div>;
+
+  const mesAtual  = todayStr.slice(0, 7);
+  const p         = planos.find(pl => pl.id === aluno.planoId);
+  const freqHoje  = aluno.frequencias?.find(f => f.data === todayStr);
+  const pct       = aluno.frequencias?.length
     ? Math.round(aluno.frequencias.filter(f => f.presente).length / aluno.frequencias.length * 100)
     : 0;
 
+  const marcar = (presente) => {
+    registrarFreq(
+      { alunoId: aluno._id, presente, data: todayStr },
+      { onSuccess: () => showToast(presente ? "✓ Presença registrada" : "✓ Falta registrada") }
+    );
+  };
+
   return (
     <>
-      {/* Hero */}
       <div className="detail-hero">
         <div className="detail-av">{iniciais(aluno.nome)}</div>
         <div className="detail-name">{aluno.nome}</div>
@@ -39,10 +48,10 @@ export default function DetalheAluno() {
           <button
             className="btn btn-sm"
             style={{ background: "rgba(255,255,255,.2)", color: "#fff", gap: 4 }}
-            onClick={() => router.push(`/alunos/${aluno.id}/editar`)}
+            onClick={() => router.push(`/alunos/${aluno._id}/editar`)}
           >{I.edit} Editar</button>
           <a
-            href={`https://wa.me/55${aluno.telefone.replace(/\D/g, "")}`}
+            href={`https://wa.me/55${aluno.telefone?.replace(/\D/g, "")}`}
             target="_blank" rel="noreferrer"
             className="btn btn-sm"
             style={{ background: "rgba(255,255,255,.2)", color: "#fff", gap: 4, textDecoration: "none" }}
@@ -50,14 +59,12 @@ export default function DetalheAluno() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="tabs">
         {[["info", "Info"], ["mens", "Mensalidades"], ["freq", "Frequência"]].map(([k, l]) => (
           <div key={k} className={`tab${tab === k ? " on" : ""}`} onClick={() => setTab(k)}>{l}</div>
         ))}
       </div>
 
-      {/* ── Info ── */}
       {tab === "info" && (
         <>
           <div className="info-block">
@@ -67,21 +74,17 @@ export default function DetalheAluno() {
             <div className="info-row"><span className="lbl">Horário</span><span className="val">{aluno.horario}</span></div>
           </div>
           <div className="info-block">
-            <div className="info-row"><span className="lbl">Dias</span><span className="val">{aluno.diasSemana.sort().map(d => DIAS_SEMANA[d]).join(", ")}</span></div>
-            <div className="info-row"><span className="lbl">Início</span><span className="val">{new Date(aluno.dataInicio + "T12:00").toLocaleDateString("pt-BR")}</span></div>
-            <div className="info-row">
-              <span className="lbl">Vencimento</span>
-              <span className="val">{aluno.dataVencimento ? new Date(aluno.dataVencimento + "T12:00").toLocaleDateString("pt-BR") : "—"}</span>
-            </div>
+            <div className="info-row"><span className="lbl">Dias</span><span className="val">{aluno.diasSemana?.sort().map(d => DIAS_SEMANA[d]).join(", ")}</span></div>
+            <div className="info-row"><span className="lbl">Início</span><span className="val">{aluno.dataInicio ? new Date(aluno.dataInicio + "T12:00").toLocaleDateString("pt-BR") : "—"}</span></div>
+            <div className="info-row"><span className="lbl">Vencimento</span><span className="val">{aluno.dataTermino ? new Date(aluno.dataTermino + "T12:00").toLocaleDateString("pt-BR") : "—"}</span></div>
             <div className="info-row"><span className="lbl">Presença geral</span><span className="val" style={{ color: "var(--gd)" }}>{pct}%</span></div>
           </div>
         </>
       )}
 
-      {/* ── Mensalidades ── */}
       {tab === "mens" && (
         <div className="section">
-          {aluno.mensalidades.length === 0
+          {!aluno.mensalidades?.length
             ? <div className="empty"><div className="empty-ico">💳</div><p>Nenhuma mensalidade gerada</p></div>
             : [...aluno.mensalidades].reverse().map(m => (
                 <div key={m.mes} className="row" style={{ cursor: "default" }}>
@@ -94,17 +97,15 @@ export default function DetalheAluno() {
                     </div>
                   </div>
                   {m.pago ? (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                      <span className="badge ok" style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20 }}>Pago</span>
-                      <span style={{ fontSize: 11, color: "var(--mu)" }}>{I.check} {m.dataPag?.split("-").reverse().join("/")}</span>
-                      {m.formaPag && (
-                        <span style={{ fontSize: 10, color: "var(--mu)" }}>{ICONES_FORMA[m.formaPag] || ""} {m.formaPag}</span>
-                      )}
+                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                      <span className="badge ok" style={{ fontSize:11, padding:"2px 8px", borderRadius:20 }}>Pago</span>
+                      <span style={{ fontSize:11, color:"var(--mu)" }}>{I.check} {m.dataPag?.split("-").reverse().join("/")}</span>
+                      {m.formaPag && <span style={{ fontSize:10, color:"var(--mu)" }}>{ICONES_FORMA[m.formaPag]||""} {m.formaPag}</span>}
                     </div>
                   ) : (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                      <span className="badge" style={{ background: "#fff3cd", color: "#856404", fontSize: 11, padding: "2px 8px", borderRadius: 20 }}>Pendente</span>
-                      <button className="btn btn-ok btn-sm" onClick={() => openPago(aluno.id, m.mes)}>{I.check} Pagar</button>
+                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                      <span className="badge" style={{ background:"#fff3cd", color:"#856404", fontSize:11, padding:"2px 8px", borderRadius:20 }}>Pendente</span>
+                      <button className="btn btn-ok btn-sm" onClick={() => openPago(aluno._id, m.mes)}>{I.check} Pagar</button>
                     </div>
                   )}
                 </div>
@@ -113,26 +114,25 @@ export default function DetalheAluno() {
         </div>
       )}
 
-      {/* ── Frequência ── */}
       {tab === "freq" && (
         <>
-          {aluno.diasSemana.includes(todayDow) && (
-            <div style={{ background: "var(--wm)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: "var(--gd)" }}>Aula de hoje — marcar presença</div>
+          {aluno.diasSemana?.includes(todayDow) && (
+            <div style={{ background:"var(--wm)", borderRadius:12, padding:14, marginBottom:14 }}>
+              <div style={{ fontSize:13, fontWeight:700, marginBottom:10, color:"var(--gd)" }}>Aula de hoje — marcar presença</div>
               <div className="btn-row">
                 <button
                   className={`btn btn-sm ${freqHoje?.presente === true ? "btn-ok" : "btn-out"} btn-full`}
-                  onClick={() => registrarFreq(aluno.id, true)}
+                  onClick={() => marcar(true)}
                 >{I.check} Presente</button>
                 <button
                   className={`btn btn-sm ${freqHoje?.presente === false ? "btn-danger" : "btn-out"} btn-full`}
-                  onClick={() => registrarFreq(aluno.id, false)}
+                  onClick={() => marcar(false)}
                 >{I.x} Faltou</button>
               </div>
             </div>
           )}
           <div className="section">
-            {aluno.frequencias.length === 0
+            {!aluno.frequencias?.length
               ? <div className="empty"><div className="empty-ico">📋</div><p>Nenhuma frequência registrada</p></div>
               : [...aluno.frequencias].sort((a, b) => b.data.localeCompare(a.data)).map(f => (
                   <div key={f.data} className="row" style={{ cursor: "default" }}>

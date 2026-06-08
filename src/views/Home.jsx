@@ -1,26 +1,34 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useApp } from "../context/AppContext.jsx";
-import { PLANOS, todayStr, todayDow } from "../constants/index.js";
+import { useApp }    from "../context/AppContext.jsx";
+import { useAlunos } from "../hooks/useAlunos.js";
+import { usePlanos } from "../hooks/usePlanos.js";
+import { todayStr, todayDow } from "../constants/index.js";
 import { brl, mesLabel, iniciais, primeiroNome } from "../utils/format.js";
 import { I } from "../components/Icons.jsx";
 
 export default function Home() {
-  const router = useRouter();
-  const { alunos, mesAtual, openPago } = useApp();
+  const router   = useRouter();
+  const { openPago } = useApp();
+  const mesAtual = todayStr.slice(0, 7);
 
-  const ativos   = alunos.filter(a => a.ativo).length;
-  const inadim   = alunos.filter(a => a.mensalidades.some(m => m.mes === mesAtual && !m.pago)).length;
-  const aHoje    = alunos.filter(a => a.diasSemana.includes(new Date().getDay()) && a.ativo).length;
-  const recebido = alunos.reduce((s, a) => {
-    const m = a.mensalidades.find(m => m.mes === mesAtual && m.pago);
+  const { data: alunos = [], isLoading } = useAlunos();
+  const { data: planos = [] }            = usePlanos();
+
+  const ativos    = alunos.filter(a => a.ativo).length;
+  const inadim    = alunos.filter(a => a.mensalidades?.some(m => m.mes === mesAtual && !m.pago)).length;
+  const aHoje     = alunos.filter(a => a.diasSemana?.includes(new Date().getDay()) && a.ativo).length;
+  const recebido  = alunos.reduce((s, a) => {
+    const m = a.mensalidades?.find(m => m.mes === mesAtual && m.pago);
     return m ? s + m.valor : s;
   }, 0);
 
   const alunosHoje = alunos
-    .filter(a => a.diasSemana.includes(todayDow) && a.ativo)
+    .filter(a => a.diasSemana?.includes(todayDow) && a.ativo)
     .sort((a, b) => a.horario.localeCompare(b.horario));
-  const emAberto = alunos.filter(a => a.mensalidades.some(m => m.mes === mesAtual && !m.pago));
+  const emAberto = alunos.filter(a => a.mensalidades?.some(m => m.mes === mesAtual && !m.pago));
+
+  if (isLoading) return <div className="empty"><p>Carregando…</p></div>;
 
   return (
     <>
@@ -47,9 +55,9 @@ export default function Home() {
         {alunosHoje.length === 0
           ? <div className="empty"><div className="empty-ico">☀️</div><p>Sem aulas hoje</p></div>
           : alunosHoje.map(a => {
-              const p = PLANOS.find(pl => pl.id === a.planoId);
+              const p = planos.find(pl => pl.id === a.planoId);
               return (
-                <div key={a.id} className="row" style={{ cursor: "default" }}>
+                <div key={a._id} className="row" style={{ cursor: "default" }}>
                   <div className="pill-time">{a.horario}</div>
                   <div className="row-av sm">{iniciais(a.nome)}</div>
                   <div className="row-body">
@@ -69,15 +77,15 @@ export default function Home() {
             <button className="sec-link" onClick={() => router.push("/financas")}>Ver tudo →</button>
           </div>
           {emAberto.map(a => {
-            const m = a.mensalidades.find(mm => mm.mes === mesAtual && !mm.pago);
+            const m = a.mensalidades?.find(mm => mm.mes === mesAtual && !mm.pago);
             return (
-              <div key={a.id} className="row" style={{ cursor: "default" }}>
+              <div key={a._id} className="row" style={{ cursor: "default" }}>
                 <div className="row-av sm">{iniciais(a.nome)}</div>
                 <div className="row-body">
                   <div className="row-name">{primeiroNome(a.nome)}</div>
                   <div className="row-sub">{brl(m?.valor || 0)}</div>
                 </div>
-                <button className="btn btn-ok btn-sm" onClick={() => openPago(a.id, mesAtual)}>
+                <button className="btn btn-ok btn-sm" onClick={() => openPago(a._id, mesAtual)}>
                   {I.check}
                 </button>
               </div>

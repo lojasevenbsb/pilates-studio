@@ -1,15 +1,29 @@
 "use client";
 import { useState } from "react";
-import { useApp } from "../context/AppContext.jsx";
+import { useAlunos, useRegistrarFreq } from "../hooks/useAlunos.js";
+import { useApp }    from "../context/AppContext.jsx";
 import { DIAS_SEMANA, todayStr } from "../constants/index.js";
 import { iniciais, primeiroNome } from "../utils/format.js";
 import { I } from "../components/Icons.jsx";
 
 export default function Frequencia() {
-  const { alunos, registrarFreq } = useApp();
+  const { showToast } = useApp();
   const [date, setDate] = useState(todayStr);
-  const dow   = new Date(date + "T12:00").getDay();
-  const lista = alunos.filter(a => a.diasSemana.includes(dow) && a.ativo);
+  const dow = new Date(date + "T12:00").getDay();
+
+  const { data: alunos = [], isLoading } = useAlunos();
+  const { mutate: registrarFreq } = useRegistrarFreq();
+
+  const lista = alunos.filter(a => a.diasSemana?.includes(dow) && a.ativo);
+
+  const marcar = (alunoId, presente) => {
+    registrarFreq(
+      { alunoId, presente, data: date },
+      { onSuccess: () => showToast(presente ? "✓ Presença registrada" : "✓ Falta registrada") }
+    );
+  };
+
+  if (isLoading) return <div className="empty"><p>Carregando…</p></div>;
 
   return (
     <>
@@ -29,9 +43,9 @@ export default function Frequencia() {
         {lista.length === 0
           ? <div className="empty"><div className="empty-ico">📋</div><p>Nenhum aluno com aula nesse dia</p></div>
           : lista.map(a => {
-              const f = a.frequencias.find(ff => ff.data === date);
+              const f = a.frequencias?.find(ff => ff.data === date);
               return (
-                <div key={a.id} className="row" style={{ cursor: "default", flexWrap: "wrap", gap: 8 }}>
+                <div key={a._id} className="row" style={{ cursor: "default", flexWrap: "wrap", gap: 8 }}>
                   <div className="row-av sm">{iniciais(a.nome)}</div>
                   <div className="row-body">
                     <div className="row-name">{primeiroNome(a.nome)}</div>
@@ -42,11 +56,11 @@ export default function Frequencia() {
                   <div className="btn-row">
                     <button
                       className={`btn btn-icon btn-sm ${f?.presente === true ? "btn-ok" : "btn-out"}`}
-                      onClick={() => registrarFreq(a.id, true)}
+                      onClick={() => marcar(a._id, true)}
                     >{I.check}</button>
                     <button
                       className={`btn btn-icon btn-sm ${f?.presente === false ? "btn-danger" : "btn-out"}`}
-                      onClick={() => registrarFreq(a.id, false)}
+                      onClick={() => marcar(a._id, false)}
                     >{I.x}</button>
                   </div>
                 </div>
