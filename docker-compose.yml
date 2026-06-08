@@ -1,4 +1,28 @@
 services:
+  mongo:
+    image: mongo:8.0
+    container_name: pilates-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+      - ./mongo/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - internal
+    expose:
+      - "27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    command: ["mongod", "--auth", "--bind_ip_all"]
+
   app:
     build:
       context: .
@@ -6,12 +30,16 @@ services:
       target: runner
     container_name: pilates-app
     restart: unless-stopped
+    env_file: .env
     environment:
       - NODE_ENV=production
     networks:
       - internal
     expose:
       - "3000"
+    depends_on:
+      mongo:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/', (r) => process.exit(r.statusCode >= 500 ? 1 : 0)).on('error', () => process.exit(1))\""]
       interval: 15s
@@ -44,4 +72,6 @@ networks:
     driver: bridge
 
 volumes:
+  mongo_data:
+  mongo_config:
   nginx_logs:
