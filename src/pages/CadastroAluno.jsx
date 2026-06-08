@@ -807,4 +807,3 @@ export default function CadastroAluno({ aluno = null, onVoltar, onSalvar }) {
     </div>
   );
 }
-                                                                         
