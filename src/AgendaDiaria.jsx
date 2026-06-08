@@ -4,7 +4,6 @@ const HORAS = [
   "07:00","08:00","09:00","10:00","11:00","12:00",
   "13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00",
 ];
-const INSTRUTORES = ["Ana Paula", "João Carlos", "Maria Luiza", "Pedro Henrique"];
 const TIPOS = ["Aparelho", "Solo", "Experimental", "Reabilitação", "Funcional"];
 
 const fmtIso = (d) => d.toISOString().split("T")[0];
@@ -228,7 +227,7 @@ const lbl = { fontSize:11, fontWeight:700, color:"#8c8c8c", textTransform:"upper
 const fg  = { marginBottom:16 };
 
 // ── MODAL DE AGENDAMENTO ──────────────────────────────────────────────────────
-function ModalAgendamento({ inicial, alunos, onClose, onSalvar, onCadastrarAluno }) {
+function ModalAgendamento({ inicial, alunos, instrutores = [], modalidades = [], onClose, onSalvar, onCadastrarAluno }) {
   const [form, setForm] = useState({
     id:          inicial?.id          || null,
     alunoNome:   inicial?.alunoNome   || "",
@@ -347,14 +346,16 @@ function ModalAgendamento({ inicial, alunos, onClose, onSalvar, onCadastrarAluno
               <label style={lbl}>Instrutor *</label>
               <select style={inp} value={form.instrutor} onChange={(e) => set("instrutor", e.target.value)}>
                 <option value="">Selecionar</option>
-                {INSTRUTORES.map((i) => <option key={i} value={i}>{i}</option>)}
+                {instrutores.filter(i=>i.status==="ativo").map((i) => <option key={i.id} value={i.nome}>{i.nome}</option>)}
               </select>
             </div>
             <div>
               <label style={lbl}>Tipo de aula *</label>
               <select style={inp} value={form.tipo} onChange={(e) => set("tipo", e.target.value)}>
                 <option value="">Selecionar</option>
-                {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
+                {modalidades.length > 0
+                  ? modalidades.map((m) => <option key={m.id} value={m.nome}>{m.nome}</option>)
+                  : TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
@@ -449,7 +450,7 @@ function AgCard({ ag, onEdit, onRemover }) {
 }
 
 // ── COMPONENTE PRINCIPAL ──────────────────────────────────────────────────────
-export default function AgendaDiaria({ alunos = [], agendamentos: agsProp, setAgendamentos: setAgsProp, onCadastrarAluno }) {
+export default function AgendaDiaria({ alunos = [], agendamentos: agsProp, setAgendamentos: setAgsProp, instrutores = [], modalidades = [], onCadastrarAluno }) {
   const [dataAtual, setDataAtual]               = useState(todayStr);
   const [view, setView]                         = useState("dia"); // "dia" | "semana" | "mes"
   const [agendamentosLocal, setAgendamentosLocal] = useState(SAMPLE);
@@ -724,6 +725,8 @@ export default function AgendaDiaria({ alunos = [], agendamentos: agsProp, setAg
         <ModalAgendamento
           inicial={modal}
           alunos={alunos}
+          instrutores={instrutores}
+          modalidades={modalidades}
           onClose={() => setModal(null)}
           onSalvar={salvar}
           onCadastrarAluno={onCadastrarAluno}

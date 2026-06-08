@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import AgendaDiaria from "./src/AgendaDiaria.jsx";
 import CadastroAluno from "./src/CadastroAluno.jsx";
+import Configuracoes from "./src/Configuracoes.jsx";
 
 // ── DATA ────────────────────────────────────────────────────────────────────
 const PLANOS = [
@@ -302,6 +303,7 @@ const I = {
   card:    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
   cal:     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
   clock:   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  config:  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>,
   plus:    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   check:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>,
   x:       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
@@ -320,10 +322,45 @@ function useToast() {
 }
 
 // ── APP ──────────────────────────────────────────────────────────────────────
+const INSTRUTORES_INIT = [
+  { id:1, nome:"João Carlos",    email:"joao@studio.com",  telefone:"(61) 99111-0001", status:"ativo", foto:null, modalidades:[1,2] },
+  { id:2, nome:"Maria Luiza",    email:"maria@studio.com", telefone:"(61) 99111-0002", status:"ativo", foto:null, modalidades:[1,3] },
+  { id:3, nome:"Ana Paula",      email:"ana@studio.com",   telefone:"(61) 99111-0003", status:"ativo", foto:null, modalidades:[2,4] },
+  { id:4, nome:"Pedro Henrique", email:"pedro@studio.com", telefone:"(61) 99111-0004", status:"ativo", foto:null, modalidades:[1] },
+];
+const MODALIDADES_INIT = [
+  { id:1, nome:"Aparelho",     descricao:"Pilates com equipamentos",        duracao:60, cor:"#3b5c3e", capacidade:4 },
+  { id:2, nome:"Solo",         descricao:"Pilates no solo",                 duracao:60, cor:"#5c6e7f", capacidade:6 },
+  { id:3, nome:"Funcional",    descricao:"Treino funcional completo",       duracao:45, cor:"#7f5c3e", capacidade:8 },
+  { id:4, nome:"Experimental", descricao:"Aula experimental / avaliação",  duracao:45, cor:"#5c3e7f", capacidade:2 },
+];
+
+function useLS(key, init) {
+  const [val, setVal] = useState(() => {
+    try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : (typeof init==="function" ? init() : init); }
+    catch { return typeof init==="function" ? init() : init; }
+  });
+  const set = (v) => {
+    setVal(v);
+    try { localStorage.setItem(key, JSON.stringify(typeof v==="function" ? v(val) : v)); } catch {}
+  };
+  // wrapper que aceita função updater igual useState
+  const setter = (v) => {
+    setVal(prev => {
+      const next = typeof v==="function" ? v(prev) : v;
+      try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+  return [val, setter];
+}
+
 export default function App() {
   const [tab, setTab]             = useState("home");
-  const [alunos, setAlunos]       = useState(ALUNOS0);
-  const [agendamentos, setAgendamentos] = useState(AGS_INICIAIS);
+  const [alunos, setAlunos]       = useLS("pilates_alunos", ALUNOS0);
+  const [agendamentos, setAgendamentos] = useLS("pilates_agendamentos", AGS_INICIAIS);
+  const [instrutores, setInstrutores] = useLS("pilates_instrutores", INSTRUTORES_INIT);
+  const [modalidades, setModalidades] = useLS("pilates_modalidades", MODALIDADES_INIT);
   const [stack, setStack]     = useState([]); // navigation stack
   const [sheet, setSheet]     = useState(null); // {type, data}
   const [toast, showToast]    = useToast();
@@ -429,20 +466,22 @@ export default function App() {
     {id:"mens",  label:"Finanças",    icon:I.card},
     {id:"freq",  label:"Frequência",  icon:I.cal},
     {id:"agenda",label:"Agenda",      icon:I.clock},
+    {id:"config",label:"Configurações",icon:I.config},
   ];
 
   // render page content
   const renderPage = () => {
     if (current) {
-      if (current.screen==="detalhe")  return <DetalheAluno aluno={alunos.find(a=>a.id===current.data.id)} onBack={pop} onEdit={()=>push("cadastro",{aluno:alunos.find(a=>a.id===current.data.id)})} onPago={openPago} onFreq={registrarFreq}/>;
+      if (current.screen==="detalhe")  return <DetalheAluno aluno={alunos.find(a=>a.id===current.data.id)} initialTab={current.data.initialTab||"info"} onBack={pop} onEdit={()=>push("cadastro",{aluno:alunos.find(a=>a.id===current.data.id)})} onPago={openPago} onFreq={registrarFreq}/>;
       if (current.screen==="cadastro") return <CadastroAluno aluno={current.data?.aluno||null} onVoltar={pop} onSalvar={(dados)=>{salvarAluno(dados);pop();}}/>;
     }
     switch(tab) {
       case "home":   return <Home ativos={ativos} inadim={inadim} aHoje={aHoje} recebido={recebido} alunos={alunos} onAgenda={()=>setTab("agenda")} onMens={()=>setTab("mens")} onPago={openPago}/>;
       case "alunos": return <PageAlunos alunos={alunos} onDetalhe={a=>push("detalhe",{id:a.id})} onNovo={()=>push("cadastro",{})}/>;
-      case "mens":   return <PageMens alunos={alunos} onPago={openPago}/>;
+      case "mens":   return <PageMens alunos={alunos} onPago={openPago} onDetalhe={a=>push("detalhe",{id:a.id,initialTab:"mens"})}/>;
       case "freq":   return <PageFreq alunos={alunos} onFreq={registrarFreq}/>;
-      case "agenda": return <AgendaDiaria alunos={alunos} agendamentos={agendamentos} setAgendamentos={setAgendamentos} onCadastrarAluno={(nome) => push("cadastro", { aluno: { nome } })}/>;
+      case "agenda": return <AgendaDiaria alunos={alunos} agendamentos={agendamentos} setAgendamentos={setAgendamentos} instrutores={instrutores} modalidades={modalidades} onCadastrarAluno={(nome) => push("cadastro", { aluno: { nome } })}/>;
+      case "config": return <Configuracoes instrutores={instrutores} setInstrutores={setInstrutores} modalidades={modalidades} setModalidades={setModalidades} showToast={showToast}/>;
     }
   };
 
@@ -603,8 +642,8 @@ function PageAlunos({alunos,onDetalhe,onNovo}) {
 }
 
 // ── DETALHE ───────────────────────────────────────────────────────────────────
-function DetalheAluno({aluno,onBack,onEdit,onPago,onFreq}) {
-  const [tab,setTab]=useState("info");
+function DetalheAluno({aluno,onBack,onEdit,onPago,onFreq,initialTab="info"}) {
+  const [tab,setTab]=useState(initialTab);
   const p=PLANOS.find(pl=>pl.id===aluno.planoId);
   const ini=aluno.nome.split(" ").slice(0,2).map(n=>n[0]).join("");
   const mesAtual=todayStr.slice(0,7);
@@ -707,7 +746,9 @@ function DetalheAluno({aluno,onBack,onEdit,onPago,onFreq}) {
 }
 
 // ── MENSALIDADES ──────────────────────────────────────────────────────────────
-function PageMens({alunos,onPago}) {
+const ICONES_FORMA = {"Pix":"⚡","Cartão de Crédito":"💳","Cartão de Débito":"💳","Boleto":"📄","Dinheiro":"💵"};
+
+function PageMens({alunos,onPago,onDetalhe}) {
   const [mes,setMes]=useState(todayStr.slice(0,7));
   const [filtro,setFiltro]=useState("todos");
 
@@ -719,17 +760,24 @@ function PageMens({alunos,onPago}) {
     return true;
   });
 
-  const totPago   = lista.filter(a=>a.mensalidades.find(m=>m.mes===mes)?.pago).reduce((s,a)=>s+a.mensalidades.find(m=>m.mes===mes).valor,0);
-  const totAberto = lista.filter(a=>!a.mensalidades.find(m=>m.mes===mes)?.pago).reduce((s,a)=>s+a.mensalidades.find(m=>m.mes===mes).valor,0);
+  const totPago   = alunos.reduce((s,a)=>{const m=a.mensalidades.find(m=>m.mes===mes&&m.pago); return m?s+m.valor:s;},0);
+  const totAberto = alunos.reduce((s,a)=>{const m=a.mensalidades.find(m=>m.mes===mes&&!m.pago); return m?s+m.valor:s;},0);
 
   return (
     <>
+      {/* Título */}
+      <div style={{fontFamily:"Fraunces,serif",fontSize:20,fontWeight:600,color:"#3b5c3e",marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
+        💳 Financeiro e Pagamento
+      </div>
+
+      {/* Totais */}
       <div className="stat-grid" style={{marginBottom:12}}>
         <div className="stat grn"><div className="stat-num" style={{fontSize:20}}>{brl(totPago)}</div><div className="stat-label">Recebido</div></div>
         <div className="stat red"><div className="stat-num" style={{fontSize:20}}>{brl(totAberto)}</div><div className="stat-label">Em aberto</div></div>
       </div>
 
-      <div style={{display:"flex",gap:8,marginBottom:12}}>
+      {/* Filtros */}
+      <div style={{display:"flex",gap:8,marginBottom:16}}>
         <input type="month" className="form-input" style={{flex:1}} value={mes} onChange={e=>setMes(e.target.value)}/>
         <select className="form-input" style={{flex:1}} value={filtro} onChange={e=>setFiltro(e.target.value)}>
           <option value="todos">Todos</option>
@@ -738,31 +786,61 @@ function PageMens({alunos,onPago}) {
         </select>
       </div>
 
-      <div className="section">
-        {lista.length===0
-          ? <div className="empty"><div className="empty-ico">💳</div><p>Nenhum registro</p></div>
-          : lista.map(a=>{
-            const m=a.mensalidades.find(mm=>mm.mes===mes);
-            const ini=a.nome.split(" ").slice(0,2).map(n=>n[0]).join("");
-            return (
-              <div key={a.id} className="row" style={{cursor:"default"}}>
-                <div className="row-av sm">{ini}</div>
-                <div className="row-body">
-                  <div className="row-name">{a.nome.split(" ").slice(0,2).join(" ")}</div>
-                  <div className="row-sub">{brl(m?.valor||0)}</div>
-                </div>
-                {m?.pago
-                  ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3}}>
-                      <span className="badge ok">{I.check} {m.dataPag?.split("-").reverse().join("/")}</span>
-                      {m.formaPag && <span style={{fontSize:10,color:"var(--mu)"}}>{m.formaPag}</span>}
+      {/* Cards estilo step 4 */}
+      {lista.length===0
+        ? <div className="empty"><div className="empty-ico">💳</div><p>Nenhum registro</p></div>
+        : lista.map((a,idx)=>{
+          const m=a.mensalidades.find(mm=>mm.mes===mes);
+          const numParcela = a.mensalidades.findIndex(mm=>mm.mes===mes)+1;
+          return (
+            <div key={a.id} onClick={()=>onDetalhe(a)} style={{
+              display:"flex",alignItems:"center",justifyContent:"space-between",
+              background: m?.pago ? "#f0faf3" : "#fff",
+              border:`1.5px solid ${m?.pago ? "#a8c5ab" : "#e8e0d0"}`,
+              borderRadius:12,padding:"14px 16px",marginBottom:8,
+              transition:"all .15s",cursor:"pointer",
+            }}>
+              {/* Número + info */}
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{
+                  width:30,height:30,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
+                  background: m?.pago ? "#3b5c3e" : "#f4efe5",
+                  fontSize:12,fontWeight:700,color: m?.pago ? "#fff" : "#8c8c8c",flexShrink:0,
+                }}>{numParcela}</div>
+                <div>
+                  <div style={{fontSize:14,fontWeight:700,color:"#1e1e1e"}}>{a.nome.split(" ").slice(0,2).join(" ")}</div>
+                  <div style={{fontSize:12,color:"#666",marginTop:2}}>
+                    {m?.vencimento
+                      ? new Date(m.vencimento+"T12:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"})
+                      : `Vence dia ${a.diaVencimento||10}`}
+                  </div>
+                  {m?.pago && m?.dataPag && (
+                    <div style={{fontSize:11,color:"#2e7d46",fontWeight:600,marginTop:2}}>
+                      Pago em {new Date(m.dataPag+"T12:00").toLocaleDateString("pt-BR")}
+                      {m.formaPag && <span style={{marginLeft:6}}>{ICONES_FORMA[m.formaPag]||""} {m.formaPag}</span>}
                     </div>
-                  : <button className="btn btn-ok btn-sm" onClick={()=>onPago(a.id,mes)}>{I.check} Pagar</button>
+                  )}
+                </div>
+              </div>
+              {/* Valor + status */}
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <span style={{fontSize:14,fontWeight:700,color:"#1e1e1e"}}>{brl(m?.valor||0)}</span>
+                {m?.pago
+                  ? <span style={{
+                      padding:"7px 14px",borderRadius:8,fontSize:12,fontWeight:700,
+                      background:"#3b5c3e",color:"#fff",
+                    }}>✓ Pago</span>
+                  : <button onClick={e=>{e.stopPropagation();onPago(a.id,mes);}} style={{
+                      padding:"7px 14px",borderRadius:8,border:"none",cursor:"pointer",
+                      fontFamily:"inherit",fontSize:12,fontWeight:700,
+                      background:"#fef3e2",color:"#c47a0a",transition:"all .15s",
+                    }}>◷ Pagar</button>
                 }
               </div>
-            );
-          })
-        }
-      </div>
+            </div>
+          );
+        })
+      }
     </>
   );
 }
@@ -858,7 +936,7 @@ function PageAgenda({alunos,agenda,onConfirmar,onFreq}) {
 
 // ── SHEET ALUNO ───────────────────────────────────────────────────────────────
 function PagoSheet({data,onClose,onConfirmar}) {
-  const formas = data.formasPagamento?.length ? data.formasPagamento : ["Pix","Cartão de Crédito","Cartão de Débito","Dinheiro"];
+  const formas = ["Pix","Cartão de Crédito","Cartão de Débito","Boleto","Dinheiro"];
   const [forma,setForma] = useState(formas[0]);
   const icones = {"Pix":"⚡","Cartão de Crédito":"💳","Cartão de Débito":"💳","Boleto":"🧾","Dinheiro":"💵"};
   return (
