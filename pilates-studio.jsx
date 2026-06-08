@@ -341,11 +341,15 @@ export default function App() {
   const mesAtual = todayStr.slice(0,7);
 
   // mutations
-  const marcarPago = (alunoId, mes) => {
+  const marcarPago = (alunoId, mes, formaPag) => {
     setAlunos(p => p.map(a => a.id!==alunoId ? a : {
-      ...a, mensalidades: a.mensalidades.map(m => m.mes!==mes ? m : {...m, pago:true, dataPag:todayStr})
+      ...a, mensalidades: a.mensalidades.map(m => m.mes!==mes ? m : {...m, pago:true, dataPag:todayStr, formaPag: formaPag||null})
     }));
     showToast("✓ Pagamento registrado");
+  };
+  const openPago = (alunoId, mes) => {
+    const aluno = alunos.find(a=>a.id===alunoId);
+    setSheet({type:"pago", data:{alunoId, mes, formasPagamento: aluno?.formasPagamento||[]}});
   };
   const registrarFreq = (alunoId, presente) => {
     setAlunos(p => p.map(a => {
@@ -401,7 +405,9 @@ export default function App() {
       const newId = Date.now();
       const newA  = {
         ...dados, id: newId, ativo: true,
-        mensalidades: [{mes:mesAtual, valor: plano?.valor || Number(dados.valorPlano)||0, pago:false, dataPag:null}],
+        mensalidades: dados.mensalidades?.length
+          ? dados.mensalidades
+          : [{mes:mesAtual, valor: plano?.valor || Number(dados.valorPlano)||0, pago:false, dataPag:null}],
         frequencias:  [],
       };
       setAlunos(p => [...p, newA]);
@@ -428,15 +434,15 @@ export default function App() {
   // render page content
   const renderPage = () => {
     if (current) {
-      if (current.screen==="detalhe")  return <DetalheAluno aluno={alunos.find(a=>a.id===current.data.id)} onBack={pop} onEdit={()=>push("cadastro",{aluno:alunos.find(a=>a.id===current.data.id)})} onPago={marcarPago} onFreq={registrarFreq}/>;
+      if (current.screen==="detalhe")  return <DetalheAluno aluno={alunos.find(a=>a.id===current.data.id)} onBack={pop} onEdit={()=>push("cadastro",{aluno:alunos.find(a=>a.id===current.data.id)})} onPago={openPago} onFreq={registrarFreq}/>;
       if (current.screen==="cadastro") return <CadastroAluno aluno={current.data?.aluno||null} onVoltar={pop} onSalvar={(dados)=>{salvarAluno(dados);pop();}}/>;
     }
     switch(tab) {
-      case "home":   return <Home ativos={ativos} inadim={inadim} aHoje={aHoje} recebido={recebido} alunos={alunos} onAgenda={()=>setTab("agenda")} onMens={()=>setTab("mens")} onPago={marcarPago}/>;
+      case "home":   return <Home ativos={ativos} inadim={inadim} aHoje={aHoje} recebido={recebido} alunos={alunos} onAgenda={()=>setTab("agenda")} onMens={()=>setTab("mens")} onPago={openPago}/>;
       case "alunos": return <PageAlunos alunos={alunos} onDetalhe={a=>push("detalhe",{id:a.id})} onNovo={()=>push("cadastro",{})}/>;
-      case "mens":   return <PageMens alunos={alunos} onPago={marcarPago}/>;
+      case "mens":   return <PageMens alunos={alunos} onPago={openPago}/>;
       case "freq":   return <PageFreq alunos={alunos} onFreq={registrarFreq}/>;
-      case "agenda": return <AgendaDiaria alunos={alunos} agendamentos={agendamentos} setAgendamentos={setAgendamentos}/>;
+      case "agenda": return <AgendaDiaria alunos={alunos} agendamentos={agendamentos} setAgendamentos={setAgendamentos} onCadastrarAluno={(nome) => push("cadastro", { aluno: { nome } })}/>;
     }
   };
 
@@ -483,14 +489,7 @@ export default function App() {
           <div className="sheet-overlay" onClick={e=>e.target===e.currentTarget&&setSheet(null)}>
             {sheet.type==="aluno" && <SheetAluno data={sheet.data} onClose={()=>setSheet(null)} onSalvar={salvarAluno}/>}
             {sheet.type==="pago"  && (
-              <div className="confirm" onClick={e=>e.stopPropagation()}>
-                <h4>Confirmar Pagamento</h4>
-                <p>Marcar mensalidade de {mesLabel(sheet.data.mes)} como paga?</p>
-                <div className="btn-row" style={{justifyContent:"center"}}>
-                  <button className="btn btn-out" onClick={()=>setSheet(null)}>Cancelar</button>
-                  <button className="btn btn-prim" onClick={()=>{marcarPago(sheet.data.alunoId,sheet.data.mes);setSheet(null);}}>Confirmar</button>
-                </div>
-              </div>
+              <PagoSheet data={sheet.data} onClose={()=>setSheet(null)} onConfirmar={(formaPag)=>{marcarPago(sheet.data.alunoId,sheet.data.mes,formaPag);setSheet(null);}}/>
             )}
           </div>
         )}
@@ -660,8 +659,15 @@ function DetalheAluno({aluno,onBack,onEdit,onPago,onFreq}) {
                 <div className="row-sub">{brl(m.valor)} · vence dia 10</div>
               </div>
               {m.pago
-                ? <span className="badge ok">{I.check} {m.dataPag?.split("-").reverse().join("/")}</span>
-                : <button className="btn btn-ok btn-sm" onClick={()=>onPago(aluno.id,m.mes)}>{I.check} Pagar</button>
+                ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                    <span className="badge ok" style={{fontSize:11,padding:"2px 8px",borderRadius:20}}>Pago</span>
+                    <span style={{fontSize:11,color:"var(--mu)"}}>{I.check} {m.dataPag?.split("-").reverse().join("/")}</span>
+                    {m.formaPag && <span style={{fontSize:10,color:"var(--mu)"}}>{m.formaPag}</span>}
+                  </div>
+                : <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                    <span className="badge" style={{background:"#fff3cd",color:"#856404",fontSize:11,padding:"2px 8px",borderRadius:20}}>Pendente</span>
+                    <button className="btn btn-ok btn-sm" onClick={()=>onPago(aluno.id,m.mes)}>{I.check} Pagar</button>
+                  </div>
               }
             </div>
           ))}
@@ -746,7 +752,10 @@ function PageMens({alunos,onPago}) {
                   <div className="row-sub">{brl(m?.valor||0)}</div>
                 </div>
                 {m?.pago
-                  ? <span className="badge ok">{I.check} {m.dataPag?.split("-").reverse().join("/")}</span>
+                  ? <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3}}>
+                      <span className="badge ok">{I.check} {m.dataPag?.split("-").reverse().join("/")}</span>
+                      {m.formaPag && <span style={{fontSize:10,color:"var(--mu)"}}>{m.formaPag}</span>}
+                    </div>
                   : <button className="btn btn-ok btn-sm" onClick={()=>onPago(a.id,mes)}>{I.check} Pagar</button>
                 }
               </div>
@@ -848,6 +857,34 @@ function PageAgenda({alunos,agenda,onConfirmar,onFreq}) {
 }
 
 // ── SHEET ALUNO ───────────────────────────────────────────────────────────────
+function PagoSheet({data,onClose,onConfirmar}) {
+  const formas = data.formasPagamento?.length ? data.formasPagamento : ["Pix","Cartão de Crédito","Cartão de Débito","Dinheiro"];
+  const [forma,setForma] = useState(formas[0]);
+  const icones = {"Pix":"⚡","Cartão de Crédito":"💳","Cartão de Débito":"💳","Boleto":"🧾","Dinheiro":"💵"};
+  return (
+    <div className="confirm" onClick={e=>e.stopPropagation()} style={{maxWidth:340}}>
+      <h4>Registrar Pagamento</h4>
+      <p style={{marginBottom:12}}>Mensalidade de <strong>{mesLabel(data.mes)}</strong></p>
+      <p style={{fontSize:13,color:"var(--mu)",marginBottom:8}}>Forma de pagamento:</p>
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+        {formas.map(f=>(
+          <button key={f} onClick={()=>setForma(f)} style={{
+            padding:"10px 14px",borderRadius:10,border:`2px solid ${forma===f?"var(--gd)":"var(--sd)"}`,
+            background:forma===f?"var(--gd)":"var(--wh)",color:forma===f?"#fff":"var(--tx)",
+            fontWeight:600,fontSize:13,cursor:"pointer",textAlign:"left",transition:"all .15s"
+          }}>
+            {icones[f]||"💰"} {f}
+          </button>
+        ))}
+      </div>
+      <div className="btn-row" style={{justifyContent:"center"}}>
+        <button className="btn btn-out" onClick={onClose}>Cancelar</button>
+        <button className="btn btn-prim" onClick={()=>onConfirmar(forma)}>Confirmar</button>
+      </div>
+    </div>
+  );
+}
+
 function SheetAluno({data,onClose,onSalvar}) {
   const [form,setForm]=useState({
     id:data?.id||null, nome:data?.nome||"", telefone:data?.telefone||"",

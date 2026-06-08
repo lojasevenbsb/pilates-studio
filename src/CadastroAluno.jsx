@@ -426,6 +426,15 @@ function Step4({ form, set, errors }) {
         : [...form.formasPagamento, p]
     );
 
+  const toggleParcelaPaga = (idx) => {
+    const novas = (form.mensalidades || []).map((p, i) =>
+      i === idx
+        ? { ...p, pago: !p.pago, dataPag: !p.pago ? todayStr : null }
+        : p
+    );
+    set("mensalidades", novas);
+  };
+
   const ICONES = {
     "Pix":              "⚡",
     "Cartão de Crédito":"💳",
@@ -433,6 +442,10 @@ function Step4({ form, set, errors }) {
     "Boleto":           "📄",
     "Dinheiro":         "💵",
   };
+
+  const parcelas     = form.mensalidades || [];
+  const totalPago    = parcelas.filter(p => p.pago).reduce((s, p) => s + (p.valor||0), 0);
+  const totalPendente= parcelas.filter(p => !p.pago).reduce((s, p) => s + (p.valor||0), 0);
 
   return (
     <div style={card}>
@@ -481,6 +494,69 @@ function Step4({ form, set, errors }) {
           <input style={inp()} value={form.obsFinanceiro||""} onChange={e=>set("obsFinanceiro",e.target.value)} placeholder="Desconto aplicado, bolsista, etc."/>
         </div>
       </div>
+
+      {/* Parcelas geradas */}
+      {parcelas.length > 0 && (
+        <div style={{ marginBottom:20 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+            <label style={lbl}>Parcelas do contrato</label>
+            <div style={{ display:"flex", gap:10 }}>
+              <span style={{ fontSize:11, fontWeight:700, background:"#e6f4ec", color:"#2e7d46", borderRadius:20, padding:"3px 12px" }}>
+                ✓ Pago: {brl(totalPago)}
+              </span>
+              <span style={{ fontSize:11, fontWeight:700, background:"#fef3e2", color:"#c47a0a", borderRadius:20, padding:"3px 12px" }}>
+                ◷ Pendente: {brl(totalPendente)}
+              </span>
+            </div>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {parcelas.map((p, i) => (
+              <div
+                key={i}
+                style={{
+                  display:"flex", alignItems:"center", justifyContent:"space-between",
+                  background: p.pago ? "#f0faf3" : "#fff",
+                  border:`1.5px solid ${p.pago ? "#a8c5ab" : "#e8e0d0"}`,
+                  borderRadius:10, padding:"12px 16px",
+                  transition:"all .15s",
+                }}
+              >
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  <div style={{
+                    width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center",
+                    background: p.pago ? "#3b5c3e" : "#f4efe5",
+                    fontSize:12, fontWeight:700, color: p.pago ? "#fff" : "#8c8c8c",
+                  }}>{p.id}</div>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:700, color:"#1e1e1e" }}>
+                      {new Date(p.vencimento + "T12:00").toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" })}
+                    </div>
+                    {p.pago && p.dataPag && (
+                      <div style={{ fontSize:11, color:"#2e7d46", fontWeight:600 }}>
+                        Pago em {new Date(p.dataPag + "T12:00").toLocaleDateString("pt-BR")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  <span style={{ fontSize:14, fontWeight:700, color:"#1e1e1e" }}>{brl(p.valor)}</span>
+                  <button
+                    onClick={() => toggleParcelaPaga(i)}
+                    style={{
+                      padding:"7px 14px", borderRadius:8, border:"none", cursor:"pointer",
+                      fontFamily:"inherit", fontSize:12, fontWeight:700, transition:"all .15s",
+                      background: p.pago ? "#3b5c3e" : "#fef3e2",
+                      color: p.pago ? "#fff" : "#c47a0a",
+                    }}
+                  >
+                    {p.pago ? "✓ Pago" : "◷ Pendente"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Resumo final */}
       <div style={{ background:"#f7f4ee", borderRadius:12, padding:"20px 22px", border:"1.5px solid #e8e0d0" }}>
@@ -559,6 +635,37 @@ export default function CadastroAluno({ aluno = null, onVoltar, onSalvar }) {
     }
   }, [form.dataInicio, form.periodicidade]);
 
+  // Gerar parcelas ao entrar na etapa 4
+  useEffect(() => {
+    if (step === 4 && form.dataInicio && form.periodicidade && form.diaVencimento && form.valorPlano) {
+      const [ano, mes] = form.dataInicio.split("-").map(Number);
+      const dia = Number(form.diaVencimento) || 10;
+
+      // Mensal: gera do mês de início até dezembro do mesmo ano (recorrente)
+      const nMeses = form.periodicidade === "mensal"
+        ? (12 - mes + 1)
+        : (MESES[form.periodicidade] || 1);
+
+      const novasParcelas = Array.from({ length: nMeses }, (_, i) => {
+        const d = new Date(ano, mes - 1 + i, dia);
+        const vencimento = fmtIso(d);
+        const mesStr = vencimento.slice(0, 7);
+        // preserva status pago se parcela já existia
+        const existente = (form.mensalidades || []).find(p => p.mes === mesStr);
+        return {
+          id:        i + 1,
+          mes:       mesStr,
+          vencimento,
+          valor:     Number(form.valorPlano) || 0,
+          pago:      existente?.pago    || false,
+          dataPag:   existente?.dataPag || null,
+        };
+      });
+
+      setForm(p => ({ ...p, mensalidades: novasParcelas }));
+    }
+  }, [step]);
+
   const validate = (s) => {
     const e = {};
     if (s === 1) {
@@ -615,9 +722,7 @@ export default function CadastroAluno({ aluno = null, onVoltar, onSalvar }) {
       ...form,
       planoId,
       dataVencimento: form.dataTermino,
-      mensalidades: form.mensalidades.length ? form.mensalidades : [
-        { mes: mesAtual, valor: Number(form.valorPlano)||0, pago: false, dataPag: null }
-      ],
+      mensalidades: form.mensalidades || [],
     };
 
     setSaved(true);

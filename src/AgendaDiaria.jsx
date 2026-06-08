@@ -228,7 +228,7 @@ const lbl = { fontSize:11, fontWeight:700, color:"#8c8c8c", textTransform:"upper
 const fg  = { marginBottom:16 };
 
 // ── MODAL DE AGENDAMENTO ──────────────────────────────────────────────────────
-function ModalAgendamento({ inicial, alunos, onClose, onSalvar }) {
+function ModalAgendamento({ inicial, alunos, onClose, onSalvar, onCadastrarAluno }) {
   const [form, setForm] = useState({
     id:          inicial?.id          || null,
     alunoNome:   inicial?.alunoNome   || "",
@@ -305,7 +305,10 @@ function ModalAgendamento({ inicial, alunos, onClose, onSalvar }) {
                   : (
                     <div style={{ padding:16, textAlign:"center" }}>
                       <div style={{ fontSize:13, color:"#8c8c8c", marginBottom:10 }}>Nenhum aluno encontrado</div>
-                      <button style={{ background:"#e6f4ec", border:"none", borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:700, color:"#2e7d46", cursor:"pointer" }}>
+                      <button
+                        style={{ background:"#e6f4ec", border:"none", borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:700, color:"#2e7d46", cursor:"pointer" }}
+                        onMouseDown={() => { if (onCadastrarAluno) { onClose(); onCadastrarAluno(busca); } }}
+                      >
                         + Cadastrar novo aluno
                       </button>
                     </div>
@@ -446,7 +449,7 @@ function AgCard({ ag, onEdit, onRemover }) {
 }
 
 // ── COMPONENTE PRINCIPAL ──────────────────────────────────────────────────────
-export default function AgendaDiaria({ alunos = [], agendamentos: agsProp, setAgendamentos: setAgsProp }) {
+export default function AgendaDiaria({ alunos = [], agendamentos: agsProp, setAgendamentos: setAgsProp, onCadastrarAluno }) {
   const [dataAtual, setDataAtual]               = useState(todayStr);
   const [view, setView]                         = useState("dia"); // "dia" | "semana" | "mes"
   const [agendamentosLocal, setAgendamentosLocal] = useState(SAMPLE);
@@ -723,6 +726,7 @@ export default function AgendaDiaria({ alunos = [], agendamentos: agsProp, setAg
           alunos={alunos}
           onClose={() => setModal(null)}
           onSalvar={salvar}
+          onCadastrarAluno={onCadastrarAluno}
         />
       )}
 
