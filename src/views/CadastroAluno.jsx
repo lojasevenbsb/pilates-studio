@@ -1,4 +1,7 @@
+"use client";
 import { useState, useEffect } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useApp } from "../context/AppContext.jsx";
 import { FORMAS_PAGAMENTO, PERIODICIDADES, todayStr } from "../constants/index.js";
 import { fmtIso } from "../utils/format.js";
 
@@ -582,7 +585,20 @@ function Step4({ form, set, errors }) {
 }
 
 // ── COMPONENTE PRINCIPAL ──────────────────────────────────────────────────────
-export default function CadastroAluno({ aluno = null, onVoltar, onSalvar }) {
+export default function CadastroAluno() {
+  const params       = useParams();
+  const searchParams = useSearchParams();
+  const router       = useRouter();
+  const { alunos, salvarAluno } = useApp();
+
+  // Edição: busca aluno pelo id da URL; Novo: pode ter ?nome= da Agenda
+  const alunoExistente = params?.id ? alunos.find(a => a.id === Number(params.id)) : null;
+  const aluno          = alunoExistente || null;
+  const nomeInicial    = searchParams.get("nome") || "";
+
+  const onVoltar = () => router.back();
+  const onSalvar = (dados) => { salvarAluno(dados); router.back(); };
+
   const isEdit = !!aluno?.id;
 
   const [step, setStep]           = useState(1);
@@ -592,7 +608,7 @@ export default function CadastroAluno({ aluno = null, onVoltar, onSalvar }) {
 
   const [form, setForm] = useState({
     id:             aluno?.id             || null,
-    nome:           aluno?.nome           || "",
+    nome:           aluno?.nome           || nomeInicial || "",
     telefone:       aluno?.telefone       || "",
     email:          aluno?.email          || "",
     cpf:            aluno?.cpf            || "",

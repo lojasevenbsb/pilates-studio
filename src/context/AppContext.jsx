@@ -1,3 +1,4 @@
+"use client";
 import { createContext, useContext, useState } from "react";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useToast }        from "../hooks/useToast";
@@ -13,7 +14,6 @@ import { proxHora } from "../utils/format";
 
 const AppContext = createContext(null);
 
-/** Gera agendamentos para um aluno novo com contrato. Retorna a quantidade gerada. */
 function _gerarAgendamentos(aluno, baseId, setAgendamentos) {
   if (!aluno.dataInicio || !aluno.dataTermino || !(aluno.diasSemana?.length)) return 0;
   const horarios = aluno.horariosPorDia || {};
@@ -45,26 +45,16 @@ function _gerarAgendamentos(aluno, baseId, setAgendamentos) {
 }
 
 export function AppProvider({ children }) {
-  // ── Estado persistido ────────────────────────────────────────────────────
   const [alunos,       setAlunos]       = useLocalStorage("pilates_alunos",        ALUNOS_INIT);
   const [agendamentos, setAgendamentos] = useLocalStorage("pilates_agendamentos",   AGENDAMENTOS_INIT);
   const [instrutores,  setInstrutores]  = useLocalStorage("pilates_instrutores",    INSTRUTORES_INIT);
   const [modalidades,  setModalidades]  = useLocalStorage("pilates_modalidades",    MODALIDADES_INIT);
 
-  // ── Estado volátil (UI) ──────────────────────────────────────────────────
   const [toast, showToast] = useToast();
-  const [stack, setStack]  = useState([]);
-  const [sheet, setSheet]  = useState(null); // { type, data }
+  const [sheet, setSheet]  = useState(null);
 
-  // ── Navegação ────────────────────────────────────────────────────────────
-  const push    = (screen, data = {}) => setStack(s => [...s, { screen, data }]);
-  const pop     = ()                  => setStack(s => s.slice(0, -1));
-  const current = stack[stack.length - 1] ?? null;
-
-  // ── Helpers de data ──────────────────────────────────────────────────────
   const mesAtual = todayStr.slice(0, 7);
 
-  // ── Mutações de alunos ───────────────────────────────────────────────────
   const salvarAluno = dados => {
     if (dados.id && alunos.find(a => a.id === dados.id)) {
       setAlunos(p => p.map(a => a.id === dados.id ? { ...a, ...dados } : a));
@@ -82,8 +72,6 @@ export function AppProvider({ children }) {
         frequencias: [],
       };
       setAlunos(p => [...p, newA]);
-
-      // Gerar agendamentos automáticos se o aluno tem contrato completo
       const qtdAulas = _gerarAgendamentos(newA, newId, setAgendamentos);
       showToast(qtdAulas
         ? `✓ Aluno cadastrado · ${qtdAulas} aulas agendadas`
@@ -117,26 +105,19 @@ export function AppProvider({ children }) {
     showToast(presente ? "✓ Presença registrada" : "✓ Falta registrada");
   };
 
-  // ── Abertura do sheet de pagamento ───────────────────────────────────────
   const openPago = (alunoId, mes) => {
     setSheet({ type: "pago", data: { alunoId, mes } });
   };
 
   return (
     <AppContext.Provider value={{
-      // dados
       alunos, setAlunos,
       agendamentos, setAgendamentos,
       instrutores, setInstrutores,
       modalidades, setModalidades,
-      // UI
       toast, showToast,
-      stack, sheet, setSheet,
-      // navegação
-      push, pop, current,
-      // helpers
+      sheet, setSheet,
       mesAtual,
-      // mutações
       salvarAluno, marcarPago, registrarFreq, openPago,
     }}>
       {children}
@@ -144,7 +125,6 @@ export function AppProvider({ children }) {
   );
 }
 
-/** Hook de conveniência */
 export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error("useApp deve ser usado dentro de <AppProvider>");

@@ -1,17 +1,29 @@
+"use client";
 import { useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useApp } from "../context/AppContext.jsx";
 import { PLANOS, DIAS_SEMANA, ICONES_FORMA, todayStr, todayDow } from "../constants/index.js";
 import { brl, mesLabel, iniciais } from "../utils/format.js";
 import { I } from "../components/Icons.jsx";
 
-/**
- * Detalhe do aluno: abas Info / Mensalidades / Frequência.
- */
-export default function DetalheAluno({ aluno, initialTab = "info", onBack, onEdit, onPago, onFreq }) {
+export default function DetalheAluno() {
+  const params       = useParams();
+  const searchParams = useSearchParams();
+  const router       = useRouter();
+  const { alunos, openPago, registrarFreq } = useApp();
+
+  const aluno      = alunos.find(a => a.id === Number(params.id));
+  const initialTab = searchParams.get("tab") || "info";
   const [tab, setTab] = useState(initialTab);
-  const mesAtual      = todayStr.slice(0, 7);
-  const p             = PLANOS.find(pl => pl.id === aluno.planoId);
-  const freqHoje      = aluno.frequencias.find(f => f.data === todayStr);
-  const pct           = aluno.frequencias.length
+
+  if (!aluno) {
+    return <div className="empty"><div className="empty-ico">❌</div><p>Aluno não encontrado</p></div>;
+  }
+
+  const mesAtual = todayStr.slice(0, 7);
+  const p        = PLANOS.find(pl => pl.id === aluno.planoId);
+  const freqHoje = aluno.frequencias.find(f => f.data === todayStr);
+  const pct      = aluno.frequencias.length
     ? Math.round(aluno.frequencias.filter(f => f.presente).length / aluno.frequencias.length * 100)
     : 0;
 
@@ -22,25 +34,25 @@ export default function DetalheAluno({ aluno, initialTab = "info", onBack, onEdi
         <div className="detail-av">{iniciais(aluno.nome)}</div>
         <div className="detail-name">{aluno.nome}</div>
         <div className="detail-sub">{p?.freq}x/sem · {p?.duracao} · {brl(p?.valor || 0)}/mês</div>
-        <div style={{ marginTop:10, display:"flex", gap:8 }}>
+        <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
           <span className={`badge ${aluno.ativo ? "ok" : "neu"}`}>{aluno.ativo ? "Ativo" : "Inativo"}</span>
           <button
             className="btn btn-sm"
-            style={{ background:"rgba(255,255,255,.2)", color:"#fff", gap:4 }}
-            onClick={onEdit}
+            style={{ background: "rgba(255,255,255,.2)", color: "#fff", gap: 4 }}
+            onClick={() => router.push(`/alunos/${aluno.id}/editar`)}
           >{I.edit} Editar</button>
           <a
             href={`https://wa.me/55${aluno.telefone.replace(/\D/g, "")}`}
             target="_blank" rel="noreferrer"
             className="btn btn-sm"
-            style={{ background:"rgba(255,255,255,.2)", color:"#fff", gap:4, textDecoration:"none" }}
+            style={{ background: "rgba(255,255,255,.2)", color: "#fff", gap: 4, textDecoration: "none" }}
           >{I.whats} WhatsApp</a>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="tabs">
-        {[["info","Info"],["mens","Mensalidades"],["freq","Frequência"]].map(([k, l]) => (
+        {[["info", "Info"], ["mens", "Mensalidades"], ["freq", "Frequência"]].map(([k, l]) => (
           <div key={k} className={`tab${tab === k ? " on" : ""}`} onClick={() => setTab(k)}>{l}</div>
         ))}
       </div>
@@ -61,7 +73,7 @@ export default function DetalheAluno({ aluno, initialTab = "info", onBack, onEdi
               <span className="lbl">Vencimento</span>
               <span className="val">{aluno.dataVencimento ? new Date(aluno.dataVencimento + "T12:00").toLocaleDateString("pt-BR") : "—"}</span>
             </div>
-            <div className="info-row"><span className="lbl">Presença geral</span><span className="val" style={{ color:"var(--gd)" }}>{pct}%</span></div>
+            <div className="info-row"><span className="lbl">Presença geral</span><span className="val" style={{ color: "var(--gd)" }}>{pct}%</span></div>
           </div>
         </>
       )}
@@ -72,8 +84,8 @@ export default function DetalheAluno({ aluno, initialTab = "info", onBack, onEdi
           {aluno.mensalidades.length === 0
             ? <div className="empty"><div className="empty-ico">💳</div><p>Nenhuma mensalidade gerada</p></div>
             : [...aluno.mensalidades].reverse().map(m => (
-                <div key={m.mes} className="row" style={{ cursor:"default" }}>
-                  <div style={{ flex:1 }}>
+                <div key={m.mes} className="row" style={{ cursor: "default" }}>
+                  <div style={{ flex: 1 }}>
                     <div className="row-name">{mesLabel(m.mes)}</div>
                     <div className="row-sub">
                       {brl(m.valor)} · {m.vencimento
@@ -82,17 +94,17 @@ export default function DetalheAluno({ aluno, initialTab = "info", onBack, onEdi
                     </div>
                   </div>
                   {m.pago ? (
-                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-                      <span className="badge ok" style={{ fontSize:11, padding:"2px 8px", borderRadius:20 }}>Pago</span>
-                      <span style={{ fontSize:11, color:"var(--mu)" }}>{I.check} {m.dataPag?.split("-").reverse().join("/")}</span>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                      <span className="badge ok" style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20 }}>Pago</span>
+                      <span style={{ fontSize: 11, color: "var(--mu)" }}>{I.check} {m.dataPag?.split("-").reverse().join("/")}</span>
                       {m.formaPag && (
-                        <span style={{ fontSize:10, color:"var(--mu)" }}>{ICONES_FORMA[m.formaPag] || ""} {m.formaPag}</span>
+                        <span style={{ fontSize: 10, color: "var(--mu)" }}>{ICONES_FORMA[m.formaPag] || ""} {m.formaPag}</span>
                       )}
                     </div>
                   ) : (
-                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-                      <span className="badge" style={{ background:"#fff3cd", color:"#856404", fontSize:11, padding:"2px 8px", borderRadius:20 }}>Pendente</span>
-                      <button className="btn btn-ok btn-sm" onClick={() => onPago(aluno.id, m.mes)}>{I.check} Pagar</button>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                      <span className="badge" style={{ background: "#fff3cd", color: "#856404", fontSize: 11, padding: "2px 8px", borderRadius: 20 }}>Pendente</span>
+                      <button className="btn btn-ok btn-sm" onClick={() => openPago(aluno.id, m.mes)}>{I.check} Pagar</button>
                     </div>
                   )}
                 </div>
@@ -105,16 +117,16 @@ export default function DetalheAluno({ aluno, initialTab = "info", onBack, onEdi
       {tab === "freq" && (
         <>
           {aluno.diasSemana.includes(todayDow) && (
-            <div style={{ background:"var(--wm)", borderRadius:12, padding:14, marginBottom:14 }}>
-              <div style={{ fontSize:13, fontWeight:700, marginBottom:10, color:"var(--gd)" }}>Aula de hoje — marcar presença</div>
+            <div style={{ background: "var(--wm)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: "var(--gd)" }}>Aula de hoje — marcar presença</div>
               <div className="btn-row">
                 <button
                   className={`btn btn-sm ${freqHoje?.presente === true ? "btn-ok" : "btn-out"} btn-full`}
-                  onClick={() => onFreq(aluno.id, true)}
+                  onClick={() => registrarFreq(aluno.id, true)}
                 >{I.check} Presente</button>
                 <button
                   className={`btn btn-sm ${freqHoje?.presente === false ? "btn-danger" : "btn-out"} btn-full`}
-                  onClick={() => onFreq(aluno.id, false)}
+                  onClick={() => registrarFreq(aluno.id, false)}
                 >{I.x} Faltou</button>
               </div>
             </div>
@@ -123,7 +135,7 @@ export default function DetalheAluno({ aluno, initialTab = "info", onBack, onEdi
             {aluno.frequencias.length === 0
               ? <div className="empty"><div className="empty-ico">📋</div><p>Nenhuma frequência registrada</p></div>
               : [...aluno.frequencias].sort((a, b) => b.data.localeCompare(a.data)).map(f => (
-                  <div key={f.data} className="row" style={{ cursor:"default" }}>
+                  <div key={f.data} className="row" style={{ cursor: "default" }}>
                     <span className={`fdot ${f.presente ? "pres" : "aus"}`} />
                     <div className="row-body">
                       <div className="row-name">{f.data.split("-").reverse().join("/")}</div>

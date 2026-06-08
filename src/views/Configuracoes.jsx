@@ -1,4 +1,6 @@
+"use client";
 import { useState, useRef } from "react";
+import { useApp } from "../context/AppContext.jsx";
 import {
   HORARIO_ESTUDIO_INIT,
   DURACOES_AULA,
@@ -605,7 +607,8 @@ function TabAgenda({ instrutores, modalidades, showToast }) {
 }
 
 // ── COMPONENTE PRINCIPAL ──────────────────────────────────────────────────────
-export default function Configuracoes({ instrutores, setInstrutores, modalidades, setModalidades, showToast }) {
+export default function Configuracoes() {
+  const { instrutores, setInstrutores, modalidades, setModalidades, showToast } = useApp();
   const [tab, setTab] = useState("instrutores");
 
   return (

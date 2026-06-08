@@ -1,15 +1,17 @@
+"use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useApp } from "../context/AppContext.jsx";
 import { PLANOS, todayStr } from "../constants/index.js";
 import { brl, iniciais } from "../utils/format.js";
 import { I } from "../components/Icons.jsx";
 
-/**
- * Lista de alunos com busca e badge de situação financeira do mês.
- */
-export default function Alunos({ alunos, onDetalhe, onNovo }) {
-  const [q, setQ]   = useState("");
-  const mesAtual    = todayStr.slice(0, 7);
-  const lista       = alunos.filter(a =>
+export default function Alunos() {
+  const router = useRouter();
+  const { alunos } = useApp();
+  const [q, setQ] = useState("");
+  const mesAtual  = todayStr.slice(0, 7);
+  const lista     = alunos.filter(a =>
     a.nome.toLowerCase().includes(q.toLowerCase()) || a.telefone.includes(q)
   );
 
@@ -19,7 +21,7 @@ export default function Alunos({ alunos, onDetalhe, onNovo }) {
         {I.search}
         <input
           className="form-input"
-          style={{ paddingLeft:38 }}
+          style={{ paddingLeft: 38 }}
           placeholder="Buscar aluno…"
           value={q}
           onChange={e => setQ(e.target.value)}
@@ -33,7 +35,7 @@ export default function Alunos({ alunos, onDetalhe, onNovo }) {
               const p = PLANOS.find(pl => pl.id === a.planoId);
               const m = a.mensalidades.find(m => m.mes === mesAtual);
               return (
-                <div key={a.id} className="row" onClick={() => onDetalhe(a)}>
+                <div key={a.id} className="row" onClick={() => router.push(`/alunos/${a.id}`)}>
                   <div className="row-av">{iniciais(a.nome)}</div>
                   <div className="row-body">
                     <div className="row-name">{a.nome}</div>

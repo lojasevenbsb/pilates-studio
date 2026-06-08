@@ -1,4 +1,7 @@
+"use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useApp } from "../context/AppContext.jsx";
 import { TIPOS_AULA_PADRAO, DIAS_SEMANA, todayStr } from "../constants/index.js";
 import { fmtIso, proxHora } from "../utils/format.js";
 
@@ -440,13 +443,13 @@ function AgCard({ ag, onEdit, onRemover }) {
 }
 
 // ── COMPONENTE PRINCIPAL ──────────────────────────────────────────────────────
-export default function AgendaDiaria({ alunos = [], agendamentos: agsProp, setAgendamentos: setAgsProp, instrutores = [], modalidades = [], onCadastrarAluno }) {
+export default function AgendaDiaria() {
+  const router = useRouter();
+  const { alunos, agendamentos, setAgendamentos, instrutores, modalidades } = useApp();
+  const onCadastrarAluno = (nome) => router.push(`/alunos/cadastro?nome=${encodeURIComponent(nome)}`);
+
   const [dataAtual, setDataAtual]               = useState(todayStr);
   const [view, setView]                         = useState("dia"); // "dia" | "semana" | "mes"
-  const [agendamentosLocal, setAgendamentosLocal] = useState(SAMPLE);
-
-  const agendamentos    = agsProp    ?? agendamentosLocal;
-  const setAgendamentos = setAgsProp ?? setAgendamentosLocal;
   const [modal, setModal]             = useState(null);
   const [toast, setToast]             = useState(null);
   const [confirmarId, setConfirmarId] = useState(null);
