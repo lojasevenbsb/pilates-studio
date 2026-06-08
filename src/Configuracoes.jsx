@@ -1,34 +1,10 @@
 import { useState, useRef } from "react";
-
-// ── DADOS INICIAIS ────────────────────────────────────────────────────────────
-const INSTRUTORES_INIT = [
-  { id:1, nome:"João Carlos",    email:"joao@studio.com",  telefone:"(61) 99111-0001", status:"ativo", foto:null, modalidades:[1,2] },
-  { id:2, nome:"Maria Luiza",    email:"maria@studio.com", telefone:"(61) 99111-0002", status:"ativo", foto:null, modalidades:[1,3] },
-  { id:3, nome:"Ana Paula",      email:"ana@studio.com",   telefone:"(61) 99111-0003", status:"ativo", foto:null, modalidades:[2,4] },
-  { id:4, nome:"Pedro Henrique", email:"pedro@studio.com", telefone:"(61) 99111-0004", status:"ativo", foto:null, modalidades:[1] },
-];
-
-const MODALIDADES_INIT = [
-  { id:1, nome:"Aparelho",     descricao:"Pilates com equipamentos",        duracao:60, cor:"#3b5c3e", capacidade:4 },
-  { id:2, nome:"Solo",         descricao:"Pilates no solo",                 duracao:60, cor:"#5c6e7f", capacidade:6 },
-  { id:3, nome:"Funcional",    descricao:"Treino funcional completo",       duracao:45, cor:"#7f5c3e", capacidade:8 },
-  { id:4, nome:"Experimental", descricao:"Aula experimental / avaliação",  duracao:45, cor:"#5c3e7f", capacidade:2 },
-];
-
-const HORARIO_INIT = [
-  { dia:1, label:"Seg", ativo:true,  abertura:"07:00", fechamento:"21:00", intervalo:60 },
-  { dia:2, label:"Ter", ativo:true,  abertura:"07:00", fechamento:"21:00", intervalo:60 },
-  { dia:3, label:"Qua", ativo:true,  abertura:"07:00", fechamento:"21:00", intervalo:60 },
-  { dia:4, label:"Qui", ativo:true,  abertura:"07:00", fechamento:"21:00", intervalo:60 },
-  { dia:5, label:"Sex", ativo:true,  abertura:"07:00", fechamento:"21:00", intervalo:60 },
-  { dia:6, label:"Sáb", ativo:true,  abertura:"08:00", fechamento:"14:00", intervalo:60 },
-  { dia:0, label:"Dom", ativo:false, abertura:"08:00", fechamento:"12:00", intervalo:60 },
-];
-
-const DURACOES = [30,45,60,75,90];
-
-// ── HELPERS ───────────────────────────────────────────────────────────────────
-const ini = (nome) => nome.split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase();
+import {
+  HORARIO_ESTUDIO_INIT,
+  DURACOES_AULA,
+  PRESET_CORES,
+} from "./constants/index.js";
+import { iniciais } from "./utils/format.js";
 
 // ── ÍCONES ────────────────────────────────────────────────────────────────────
 const Ic = {
@@ -42,64 +18,7 @@ const Ic = {
   check:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>,
 };
 
-// ── CSS ───────────────────────────────────────────────────────────────────────
-const CSS_CONFIG = `
-.cfg-tabs{display:flex;gap:0;border-bottom:2px solid var(--sd);margin-bottom:24px;}
-.cfg-tab{flex:1;padding:12px 8px;text-align:center;font-size:13px;font-weight:600;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;}
-.cfg-tab.on{color:var(--gd);border-bottom-color:var(--gd);}
-
-.cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:14px;}
-
-.inst-card{background:var(--wh);border-radius:14px;box-shadow:var(--sh);overflow:hidden;transition:all .15s;}
-.inst-card:hover{box-shadow:0 4px 24px rgba(0,0,0,.13);}
-.inst-card-top{padding:20px 18px 14px;display:flex;align-items:center;gap:14px;}
-.inst-av{width:56px;height:56px;border-radius:50%;background:var(--gl);display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-size:20px;color:var(--gd);font-weight:600;flex-shrink:0;overflow:hidden;}
-.inst-av img{width:100%;height:100%;object-fit:cover;}
-.inst-info{flex:1;min-width:0;}
-.inst-nome{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.inst-email{font-size:12px;color:var(--mu);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.inst-pills{display:flex;flex-wrap:wrap;gap:5px;padding:0 18px 14px;}
-.mod-pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;color:#fff;white-space:nowrap;}
-.inst-actions{display:flex;gap:8px;padding:10px 18px;background:var(--wm);border-top:1px solid var(--sd);}
-
-.mod-card{background:var(--wh);border-radius:14px;box-shadow:var(--sh);overflow:hidden;border-top:4px solid var(--sd);transition:all .15s;}
-.mod-card:hover{box-shadow:0 4px 24px rgba(0,0,0,.13);}
-.mod-card-body{padding:18px;}
-.mod-card-nome{font-size:15px;font-weight:700;margin-bottom:4px;}
-.mod-card-desc{font-size:12px;color:var(--mu);margin-bottom:12px;line-height:1.4;}
-.mod-card-meta{display:flex;gap:8px;flex-wrap:wrap;}
-.mod-chip{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--wm);color:var(--tx);}
-.mod-actions{display:flex;gap:8px;padding:10px 18px;background:var(--wm);border-top:1px solid var(--sd);}
-
-.agenda-section{background:var(--wh);border-radius:14px;box-shadow:var(--sh);margin-bottom:16px;overflow:hidden;}
-.agenda-sec-head{padding:16px 20px;border-bottom:1px solid var(--sd);font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;}
-.agenda-sec-body{padding:16px 20px;}
-.day-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--sd);}
-.day-row:last-child{border-bottom:none;}
-.day-toggle{width:42px;height:42px;border-radius:50%;border:2px solid var(--sd);background:var(--wh);font-size:12px;font-weight:700;color:var(--mu);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
-.day-toggle.on{background:var(--gd);color:#fff;border-color:var(--gd);}
-.day-times{display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap;}
-.day-input{border:1.5px solid var(--sd);border-radius:8px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--wh);outline:none;transition:border .15s;width:90px;}
-.day-input:focus{border-color:var(--gd);}
-.day-input:disabled{background:var(--wm);color:var(--mu);}
-.day-sep{font-size:12px;color:var(--mu);font-weight:600;}
-
-.foto-upload{position:relative;cursor:pointer;}
-.foto-upload input{display:none;}
-.foto-wrap{width:80px;height:80px;border-radius:50%;background:var(--gl);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;transition:all .15s;}
-.foto-wrap:hover .foto-overlay{opacity:1;}
-.foto-overlay{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;color:#fff;border-radius:50%;opacity:0;transition:opacity .2s;}
-.foto-wrap img{width:100%;height:100%;object-fit:cover;}
-
-.color-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
-.color-dot{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;display:flex;align-items:center;justify-content:center;}
-.color-dot.on{border-color:var(--tx);transform:scale(1.15);}
-`;
-
-const PRESET_CORES = [
-  "#3b5c3e","#5c6e7f","#7f5c3e","#5c3e7f","#7f3e5c",
-  "#3e5c7f","#5c7f3e","#7f6e3e","#3e7f6e","#c47a0a",
-];
+// CSS está em src/styles/global.css — sem injeção inline
 
 // ── MODAL BASE ────────────────────────────────────────────────────────────────
 function Modal({ titulo, onClose, onSalvar, children, largura=520 }) {
@@ -299,7 +218,7 @@ function ModalModalidade({ modalidade, onClose, onSalvar }) {
         <div className="form-group" style={{marginBottom:0}}>
           <label className="form-label">Duração</label>
           <select className="form-input" value={form.duracao} onChange={e=>set("duracao",Number(e.target.value))}>
-            {DURACOES.map(d=><option key={d} value={d}>{d} min</option>)}
+            {DURACOES_AULA.map(d=><option key={d} value={d}>{d} min</option>)}
           </select>
         </div>
         <div className="form-group" style={{marginBottom:0}}>
@@ -393,7 +312,7 @@ function TabInstrutores({ instrutores, setInstrutores, modalidades, showToast })
                   <div className="inst-av">
                     {inst.foto
                       ? <img src={inst.foto} alt={inst.nome}/>
-                      : ini(inst.nome)
+                      : iniciais(inst.nome)
                     }
                   </div>
                   <div className="inst-info">
@@ -546,13 +465,13 @@ function TabModalidades({ modalidades, setModalidades, instrutores, showToast })
 
 // ── ABA AGENDA ────────────────────────────────────────────────────────────────
 function TabAgenda({ instrutores, modalidades, showToast }) {
-  const [horario, setHorario] = useState(HORARIO_INIT);
+  const [horario, setHorario] = useState(HORARIO_ESTUDIO_INIT);
   const [instSel, setInstSel] = useState(instrutores[0]?.id || null);
   // disponibilidade: { [instId]: [{dia, ativo, inicio, fim}] }
   const [dispon, setDispon] = useState(() => {
     const d = {};
     instrutores.forEach(i => {
-      d[i.id] = HORARIO_INIT.map(h=>({
+      d[i.id] = HORARIO_ESTUDIO_INIT.map(h=>({
         dia: h.dia, label: h.label,
         ativo: [1,3].includes(h.dia),
         inicio: "08:00", fim: "12:00",
@@ -631,7 +550,7 @@ function TabAgenda({ instrutores, modalidades, showToast }) {
                     {i.foto
                       ? <img src={i.foto} style={{width:24,height:24,borderRadius:"50%",objectFit:"cover"}} alt=""/>
                       : <div style={{width:24,height:24,borderRadius:"50%",background:"rgba(255,255,255,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700}}>
-                          {ini(i.nome)}
+                          {iniciais(i.nome)}
                         </div>
                     }
                     {i.nome.split(" ")[0]}
@@ -691,8 +610,6 @@ export default function Configuracoes({ instrutores, setInstrutores, modalidades
 
   return (
     <>
-      <style>{CSS_CONFIG}</style>
-
       <div style={{fontFamily:"Fraunces,serif",fontSize:22,fontWeight:600,color:"var(--gd)",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
         ⚙️ Configurações
       </div>

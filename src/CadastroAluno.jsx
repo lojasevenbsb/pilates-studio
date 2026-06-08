@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { FORMAS_PAGAMENTO, PERIODICIDADES, todayStr } from "./constants/index.js";
+import { fmtIso } from "./utils/format.js";
 
 // ── TABELA DE PREÇOS ──────────────────────────────────────────────────────────
 const TABELA = {
@@ -7,16 +9,12 @@ const TABELA = {
   "3-mensal": 360,    "3-trimestral": 324,    "3-semestral": 288,
   "livre-mensal": 420,"livre-trimestral":378, "livre-semestral": 336,
 };
-const MESES   = { mensal: 1, trimestral: 3, semestral: 6 };
-const FORMAS  = ["Pix", "Cartão de Crédito", "Cartão de Débito", "Boleto", "Dinheiro"];
-const DIAS_VCT= Array.from({length:28}, (_,i) => String(i+1));
+const DIAS_VCT = Array.from({length:28}, (_,i) => String(i+1));
 
-const fmtIso  = (d) => d.toISOString().split("T")[0];
-const todayStr= fmtIso(new Date());
-const addMeses= (iso, n) => { const d = new Date(iso+"T12:00"); d.setMonth(d.getMonth()+n); return fmtIso(d); };
-const brl     = (v) => `R$ ${Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2})}`;
-const fmtCpf  = (v) => v.replace(/\D/g,"").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2").slice(0,14);
-const fmtFone = (v) => v.replace(/\D/g,"").replace(/(\d{2})(\d)/,"($1) $2").replace(/(\d{5})(\d)/,"$1-$2").slice(0,15);
+const addMeses = (iso, n) => { const d = new Date(iso+"T12:00"); d.setMonth(d.getMonth()+n); return fmtIso(d); };
+const brl      = (v) => `R$ ${Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2})}`;
+const fmtCpf   = (v) => v.replace(/\D/g,"").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2").slice(0,14);
+const fmtFone  = (v) => v.replace(/\D/g,"").replace(/(\d{2})(\d)/,"($1) $2").replace(/(\d{5})(\d)/,"$1-$2").slice(0,15);
 
 const STEPS = [
   { id:1, label:"Dados Pessoais", icon:"👤" },
@@ -407,7 +405,7 @@ function Step3({ form, set, errors }) {
             <div>
               <span style={{ fontSize:11, color:"#8c8c8c", fontWeight:700, textTransform:"uppercase", letterSpacing:.5 }}>Total do contrato</span>
               <div style={{ fontSize:20, fontFamily:"Fraunces,serif", fontWeight:600, color:"#3b5c3e" }}>
-                {brl(Number(form.valorPlano||0) * MESES[form.periodicidade])}
+                {brl(Number(form.valorPlano||0) * PERIODICIDADES[form.periodicidade])}
               </div>
             </div>
           </div>
@@ -457,7 +455,7 @@ function Step4({ form, set, errors }) {
       <div style={fg}>
         <label style={lbl}>Formas de pagamento aceitas *</label>
         <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
-          {FORMAS.map(f => {
+          {FORMAS_PAGAMENTO.map(f => {
             const on = form.formasPagamento.includes(f);
             return (
               <button
@@ -631,7 +629,7 @@ export default function CadastroAluno({ aluno = null, onVoltar, onSalvar }) {
   // Auto-calcular término
   useEffect(() => {
     if (form.dataInicio && form.periodicidade) {
-      set("dataTermino", addMeses(form.dataInicio, MESES[form.periodicidade]));
+      set("dataTermino", addMeses(form.dataInicio, PERIODICIDADES[form.periodicidade]));
     }
   }, [form.dataInicio, form.periodicidade]);
 
@@ -644,7 +642,7 @@ export default function CadastroAluno({ aluno = null, onVoltar, onSalvar }) {
       // Mensal: gera do mês de início até dezembro do mesmo ano (recorrente)
       const nMeses = form.periodicidade === "mensal"
         ? (12 - mes + 1)
-        : (MESES[form.periodicidade] || 1);
+        : (PERIODICIDADES[form.periodicidade] || 1);
 
       const novasParcelas = Array.from({ length: nMeses }, (_, i) => {
         const d = new Date(ano, mes - 1 + i, dia);

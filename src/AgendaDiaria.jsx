@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
+import { TIPOS_AULA_PADRAO, DIAS_SEMANA, todayStr } from "./constants/index.js";
+import { fmtIso, proxHora } from "./utils/format.js";
 
 const HORAS = [
   "07:00","08:00","09:00","10:00","11:00","12:00",
   "13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00",
 ];
-const TIPOS = ["Aparelho", "Solo", "Experimental", "Reabilitação", "Funcional"];
-
-const fmtIso = (d) => d.toISOString().split("T")[0];
-const todayStr = fmtIso(new Date());
 
 const addDias = (iso, n) => {
   const d = new Date(iso + "T12:00");
@@ -19,14 +17,6 @@ const labelData = (iso) =>
   new Date(iso + "T12:00").toLocaleDateString("pt-BR", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
-
-const proxHora = (h) => {
-  const [hr, mn] = h.split(":").map(Number);
-  const next = hr + 1;
-  return next > 21 ? "21:00" : `${String(next).padStart(2, "0")}:${String(mn).padStart(2, "0")}`;
-};
-
-const DS_CURTO = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 
 const addMesesNav = (iso, n) => {
   const d = new Date(iso + "T12:00");
@@ -79,7 +69,7 @@ function WeekView({ dataAtual, agendamentos, onDayClick, onNovoAgendamento }) {
               onMouseLeave={e => { if (!isHoje) e.currentTarget.style.background="transparent"; }}
             >
               <div style={{ fontSize:10, fontWeight:700, color: isHoje?"#2e7d46":"#8c8c8c", textTransform:"uppercase", letterSpacing:.5 }}>
-                {DS_CURTO[d.getDay()]}
+                {DIAS_SEMANA[d.getDay()]}
               </div>
               <div style={{
                 width:32, height:32, borderRadius:"50%", display:"flex", alignItems:"center",
@@ -141,7 +131,7 @@ function MonthView({ dataAtual, agendamentos, onDayClick }) {
     <div style={{ background:"#fff", borderRadius:16, boxShadow:"0 2px 16px rgba(0,0,0,.08)", overflow:"hidden" }}>
       {/* Cabeçalho: nomes dos dias */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", background:"#f7f4ee", borderBottom:"2px solid #e8e0d0" }}>
-        {DS_CURTO.map(d => (
+        {DIAS_SEMANA.map(d => (
           <div key={d} style={{ padding:"10px 0", textAlign:"center", fontSize:11, fontWeight:700, color:"#8c8c8c", textTransform:"uppercase", letterSpacing:.5 }}>{d}</div>
         ))}
       </div>
@@ -355,7 +345,7 @@ function ModalAgendamento({ inicial, alunos, instrutores = [], modalidades = [],
                 <option value="">Selecionar</option>
                 {modalidades.length > 0
                   ? modalidades.map((m) => <option key={m.id} value={m.nome}>{m.nome}</option>)
-                  : TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
+                  : TIPOS_AULA_PADRAO.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
